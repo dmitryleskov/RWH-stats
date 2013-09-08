@@ -4,4 +4,5 @@ fd = open('comments-meta.txt', 'r')
 
 meta = json.load(fd)
 
-print meta
+for chapter in meta:
+    print chapter['url'], len(chapter['comments'])

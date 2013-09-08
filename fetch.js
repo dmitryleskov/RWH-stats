@@ -26,9 +26,9 @@ page.open(address + '/read/', function (status) {
         phantom.exit();
     } else {
         var chapters = page.evaluate(function() {
-            var TEXT_NODE = 3;
-            var hrefs = [];
-            var chtp = /^\d+/;
+            var TEXT_NODE = 3
+            var hrefs = []
+            var chtp = /^\d+/
             $('[class^="zebra_"] > a').each(function() {
                 if (this.previousSibling &&
                     this.previousSibling.nodeType == TEXT_NODE &&
@@ -38,14 +38,26 @@ page.open(address + '/read/', function (status) {
             })
             return hrefs;
         });
-        page.close();
+        page.close()
+        allComments = []
+        countdown = chapters.length
         for (i in chapters) {
-            retrieveComments(chapters[i])
+            retrieveComments(chapters[i], function(chapter, comments) {
+                allComments.push({
+                    'url': chapter,
+                    'comments': comments
+                })
+                if (!--countdown) {
+                    fs.write('comments-meta.txt', JSON.stringify(allComments), 'w')
+                    console.log('Complete')
+                    phantom.exit()
+                }
+            })
         }
     }
 });
 
-function retrieveComments(chapter) {
+function retrieveComments(chapter, callback) {
     console.log('Retriveing Chapter ' + chapter)
     var countRE = new RegExp(address + '/comments/chapter/.+/count/')
     var scRE = new RegExp(address + '/comments/single/.+/')
@@ -111,7 +123,7 @@ function retrieveComments(chapter) {
                     if (ct) clearTimeout(ct)
                     ct = setTimeout(function () {
                         console.log('Extracting comments metadata')
-                        var comments = page.evaluate( function () {
+                        var comments = page.evaluate(function () {
                             comments = []
                             $("div.comment").each(function () {
                                 $this = $(this)
@@ -124,9 +136,7 @@ function retrieveComments(chapter) {
                             return comments
                         })
                         console.log('Extracted metadata from ' + comments.length + ' comments')
-                        for (i in comments) {
-                            fs.write('comments-meta.txt', JSON.stringify(comments), 'w')
-                        }
+                        callback(chapter, comments)
                         page.close()
                     }, 1000)
                 }
