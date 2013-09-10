@@ -27,26 +27,27 @@ page.open(address + '/read/', function (status) {
     } else {
         var chapters = page.evaluate(function() {
             var TEXT_NODE = 3
-            var hrefs = []
+            var chapters = []
             var chtp = /^\d+/
             $('[class^="zebra_"] > a').each(function() {
                 if (this.previousSibling &&
                     this.previousSibling.nodeType == TEXT_NODE &&
                     chtp.test(this.previousSibling.textContent)) {
-                    hrefs.push($(this).attr('href'));
+                    chapters.push({
+                        'number': parseInt(this.previousSibling.textContent),
+                        'title' : $(this).text(),
+                        'href'  : $(this).attr('href')
+                    })
                 }
             })
-            return hrefs;
+            return chapters;
         });
         page.close()
         allComments = []
         countdown = chapters.length
         for (i in chapters) {
-            retrieveComments(chapters[i], function(chapter, comments) {
-                allComments.push({
-                    'url': chapter,
-                    'comments': comments
-                })
+            retrieveComments(chapters[i], function(chapter) {
+                allComments.push(chapter)
                 if (!--countdown) {
                     fs.write('comments-meta.txt', JSON.stringify(allComments), 'w')
                     console.log('Complete')
@@ -58,7 +59,7 @@ page.open(address + '/read/', function (status) {
 });
 
 function retrieveComments(chapter, callback) {
-    console.log('Retriveing Chapter ' + chapter)
+    console.log('Retrieving Chapter "' + chapter.title + '"')
     var countRE = new RegExp(address + '/comments/chapter/.+/count/')
     var scRE = new RegExp(address + '/comments/single/.+/')
     var page = webpage.create()
@@ -91,7 +92,7 @@ function retrieveComments(chapter, callback) {
                         })
                         return count
                     })
-                    console.log("Total number of comments in " + chapter + ": " + comments)
+                    console.log('Total number of comments in Chapter ' + chapter.number + ': ' + comments)
                     console.log('Initiate comment loading')
                     page.onResourceRequested = isCommentRequested 
                     page.onResourceReceived = isCommentReceived
@@ -136,7 +137,8 @@ function retrieveComments(chapter, callback) {
                             return comments
                         })
                         console.log('Extracted metadata from ' + comments.length + ' comments')
-                        callback(chapter, comments)
+                        chapter.comments = comments
+                        callback(chapter)
                         page.close()
                     }, 1000)
                 }
@@ -144,12 +146,12 @@ function retrieveComments(chapter, callback) {
         }
     }
     
-    page.open(address+"/read/"+chapter, function (status) {
+    page.open(address+"/read/"+chapter.href, function (status) {
         if (status !== 'success') {
-            console.log('Failed to retrieve chapter ' + chapter);
+            console.log('Failed to retrieve Chapter ' + chapter.number);
             phantom.exit();
         } else {
-            console.log('Chapter ' + chapter + ' loaded')
+            console.log('Chapter ' + chapter.number + ' loaded')
         }
     })
 }
